@@ -39,14 +39,14 @@ const HeadingAndLogo = () => {
       <TypographyH1 className="w-full tracking-wide">
         Project Planner
       </TypographyH1>
-      {isLandingPage ? (
+      {isLandingPage && !registeredUser ? (
         <Button asChild>
           <Link href="/register-me">Get Started</Link>
         </Button>
       ) : registeredUser ? (
         <Avatar>
-          <AvatarImage src="/user-avatar.png" />
-          <AvatarFallback>U</AvatarFallback>
+          <AvatarImage src="https://github.com/shadcn.png" />
+          <AvatarFallback>CN</AvatarFallback>
         </Avatar>
       ) : null}
     </div>
