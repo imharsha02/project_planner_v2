@@ -1,9 +1,12 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useContext, useEffect } from "react";
+import { userContext } from "../context/userContext";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 import {
   Form,
   FormControl,
@@ -30,6 +33,12 @@ const formSchema = z.object({
   }),
 });
 const RegisterFrom = () => {
+  const router = useRouter();
+  const context = useContext(userContext);
+  if (!context) {
+    throw new Error("RegisterForm must be used within a UserProvider");
+  }
+  const { userIsRegistered, registeredUser } = context;
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,15 +48,24 @@ const RegisterFrom = () => {
       confirmPassword: "",
     },
   });
+  useEffect(() => {
+    if (registeredUser) {
+      router.push("/");
+    }
+  }, [router, registeredUser]);
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     // Do something with the form values.
     // ✅ This will be type-safe and validated.
     console.log(values);
+    userIsRegistered(true);
   };
+
   return (
     <Card className="w-1/2 mx-auto my-3">
       <CardHeader>
-        <CardTitle className="text-center">Register to project planner</CardTitle>
+        <CardTitle className="text-center">
+          Register to project planner
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -110,7 +128,9 @@ const RegisterFrom = () => {
                 </FormItem>
               )}
             />
-            <Button className="w-full" type="submit">Submit</Button>
+            <Button className="w-full" type="submit">
+              Submit
+            </Button>
           </form>
         </Form>
       </CardContent>

@@ -1,14 +1,22 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
+import { userContext } from "../context/userContext";
 import { TypographyH1 } from "./ui/Typography/TypographyH1";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 
 const HeadingAndLogo = () => {
-  const [isLandingPage, setIsLandingPage] = useState(false);
+  const context = useContext(userContext);
+  if (!context) {
+    throw new Error("HeaderAndLogo must be used within a UserProvider");
+  }
+  const { registeredUser } = context;
   const pathName = usePathname();
+  const [isLandingPage, setIsLandingPage] = useState(false);
+
   useEffect(() => {
     if (pathName === "/") {
       setIsLandingPage(true);
@@ -16,6 +24,7 @@ const HeadingAndLogo = () => {
       setIsLandingPage(false);
     }
   }, [pathName]);
+
   return (
     <div className="flex items-center justify-evenly">
       <Link href="/">
@@ -30,13 +39,16 @@ const HeadingAndLogo = () => {
       <TypographyH1 className="w-full tracking-wide">
         Project Planner
       </TypographyH1>
-      {isLandingPage == true ? (
-        <Button asChild className="m-3">
+      {isLandingPage ? (
+        <Button asChild>
           <Link href="/register-me">Get Started</Link>
         </Button>
-      ) : (
-        <></>
-      )}
+      ) : registeredUser ? (
+        <Avatar>
+          <AvatarImage src="/user-avatar.png" />
+          <AvatarFallback>U</AvatarFallback>
+        </Avatar>
+      ) : null}
     </div>
   );
 };
