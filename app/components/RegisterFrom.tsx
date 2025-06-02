@@ -1,6 +1,7 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
 import { useContext, useEffect } from "react";
 import { userContext } from "../context/userContext";
 import { useForm } from "react-hook-form";
@@ -31,10 +32,20 @@ const formSchema = z.object({
   confirmPassword: z.string().min(8, {
     message: "Retype the password",
   }),
+  profilePic: z.any(),
 });
 const RegisterFrom = () => {
+  // const [userDetails, setUserDetails] = useState({
+  //   username: "",
+  //   email: "",
+  //   password: "",
+  // });
+
   const router = useRouter();
   const context = useContext(userContext);
+  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   if (!context) {
     throw new Error("RegisterForm must be used within a UserProvider");
   }
@@ -53,10 +64,46 @@ const RegisterFrom = () => {
       router.push("/");
     }
   }, [router, registeredUser]);
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     console.log(values);
+    if (!file) {
+      setError("Profile picture is required.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("username", values.username);
+      formData.append("email", values.email);
+      formData.append("password", values.password);
+      formData.append("profilePic", file);
+
+      const res = await fetch(`http://localhost:4000/data`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to register");
+      }
+
+      console.log("User registered successfully:", result);
+      router.push("/project-description");
+    } catch (err) {
+      console.error("Registration error:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+
     userIsRegistered(true);
   };
 
@@ -70,6 +117,7 @@ const RegisterFrom = () => {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            {/* Email */}
             <FormField
               control={form.control}
               name="username"
@@ -86,6 +134,7 @@ const RegisterFrom = () => {
                 </FormItem>
               )}
             />
+            {/* Email 👇 */}
             <FormField
               control={form.control}
               name="email"
@@ -100,6 +149,7 @@ const RegisterFrom = () => {
                 </FormItem>
               )}
             />
+            {/* Password 👇 */}
             <FormField
               control={form.control}
               name="password"
@@ -114,6 +164,22 @@ const RegisterFrom = () => {
                 </FormItem>
               )}
             />
+            {/* Confirm password 👇 */}
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Password" type="password" {...field} />
+                  </FormControl>
+                  <FormDescription>Confirm your password</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Profile pic 👇 */}
             <FormField
               control={form.control}
               name="confirmPassword"
