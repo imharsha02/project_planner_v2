@@ -19,21 +19,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-const formSchema = z.object({
-  username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
-  }),
-  email: z.string().min(1, {
-    message: "Email is required",
-  }),
-  password: z.string().min(8, {
-    message: "Password must be at least 8 characters long",
-  }),
-  confirmPassword: z.string().min(8, {
-    message: "Retype the password",
-  }),
-  profilePic: z.any(),
-});
+const formSchema = z
+  .object({
+    username: z.string().min(2, {
+      message: "Username must be at least 2 characters.",
+    }),
+    email: z.string().email({
+      message: "Please enter a valid email address.",
+    }),
+    password: z.string().min(8, {
+      message: "Password must be at least 8 characters long",
+    }),
+    confirmPassword: z.string().min(8, {
+      message: "Retype the password",
+    }),
+    profilePic: z.any(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 const RegisterFrom = () => {
   // const [userDetails, setUserDetails] = useState({
   //   username: "",
@@ -57,15 +62,15 @@ const RegisterFrom = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      profilePic: null,
     },
   });
   useEffect(() => {
     if (registeredUser) {
-      router.push("/");
+      router.push("/about-project");
     }
   }, [router, registeredUser]);
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log(values);
     if (!file) {
       setError("Profile picture is required.");
       return;
@@ -74,13 +79,16 @@ const RegisterFrom = () => {
       setIsLoading(true);
       setError(null);
 
+      // Remove frontend hashing, send plain password to backend
+      // const hashedPassword = CryptoJS.SHA256(values.password).toString();
+
       const formData = new FormData();
       formData.append("username", values.username);
       formData.append("email", values.email);
-      formData.append("password", values.password);
+      formData.append("password", values.password); // Send plain password for backend hashing
       formData.append("profilePic", file);
 
-      const res = await fetch(`http://localhost:4000/data`, {
+      const res = await fetch(`http://localhost:4000/backend/users`, {
         method: "POST",
         body: formData,
       });
@@ -91,8 +99,13 @@ const RegisterFrom = () => {
         throw new Error(result.error || "Failed to register");
       }
 
-      console.log("User registered successfully:", result);
-      router.push("/project-description");
+      // Update user context with the new user data
+      if (result.success && result.data) {
+        userIsRegistered(true);
+        router.push("/project-description");
+      } else {
+        throw new Error("Registration successful but no user data received");
+      }
     } catch (err) {
       console.error("Registration error:", err);
       if (err instanceof Error) {
@@ -103,8 +116,6 @@ const RegisterFrom = () => {
     } finally {
       setIsLoading(false);
     }
-
-    userIsRegistered(true);
   };
 
   return (
@@ -182,20 +193,36 @@ const RegisterFrom = () => {
             {/* Profile pic 👇 */}
             <FormField
               control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
+              name="profilePic"
+              render={({ field: { onChange, ...restField } }) => (
                 <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
+                  <FormLabel>Profile Picture</FormLabel>
                   <FormControl>
-                    <Input placeholder="Password" type="password" {...field} />
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setFile(file);
+                          onChange(file);
+                        } else {
+                          setFile(null);
+                          onChange(null);
+                        }
+                      }}
+                      {...restField}
+                      value={undefined}
+                    />
                   </FormControl>
-                  <FormDescription>Confirm your password</FormDescription>
+                  <FormDescription>Upload your profile picture</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button className="w-full" type="submit">
-              Submit
+            {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+            <Button className="w-full" type="submit" disabled={isLoading}>
+              {isLoading ? "Registering..." : "Submit"}
             </Button>
           </form>
         </Form>
