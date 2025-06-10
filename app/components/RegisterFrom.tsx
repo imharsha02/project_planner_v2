@@ -1,13 +1,10 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type React from "react";
+
 import { z } from "zod";
-import { useState } from "react";
-import { useContext, useEffect } from "react";
-import { userContext } from "../context/userContext";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
 import {
   Form,
   FormControl,
@@ -18,43 +15,41 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import { useContext, useState } from "react";
+import { Loader2, Upload } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { userContext } from "../context/userContext";
 
 const formSchema = z
   .object({
-    username: z.string().min(2, {
-      message: "Username must be at least 2 characters.",
-    }),
-    email: z.string().email({
-      message: "Please enter a valid email address.",
-    }),
-    password: z.string().min(8, {
-      message: "Password must be at least 8 characters long",
-    }),
-    confirmPassword: z.string().min(8, {
-      message: "Retype the password",
-    }),
-    profilePic: z.any(),
+    username: z
+      .string()
+      .min(2, "Username must be at least 2 characters.")
+      .max(50, "Username must not exceed 50 characters."),
+    email: z.string().email("Invalid email address."),
+    password: z.string().min(8, "Password must be at least 8 characters."),
+    confirmPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters."),
+    profilePic: z.any().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });
-const RegisterFrom = () => {
-  // const [userDetails, setUserDetails] = useState({
-  //   username: "",
-  //   email: "",
-  //   password: "",
-  // });
 
-  const router = useRouter();
+export default function RegisterForm() {
   const context = useContext(userContext);
-  const [error, setError] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   if (!context) {
     throw new Error("RegisterForm must be used within a UserProvider");
   }
-  const { userIsRegistered, registeredUser } = context;
+  const { userIsRegistered } = context;
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -62,30 +57,31 @@ const RegisterFrom = () => {
       email: "",
       password: "",
       confirmPassword: "",
-      profilePic: null,
     },
   });
-  useEffect(() => {
-    if (registeredUser) {
-      router.push("/about-project");
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setFile(event.target.files[0]);
+    } else {
+      setFile(null);
     }
-  }, [router, registeredUser]);
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  };
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!file) {
       setError("Profile picture is required.");
       return;
     }
+
     try {
       setIsLoading(true);
       setError(null);
 
-      // Remove frontend hashing, send plain password to backend
-      // const hashedPassword = CryptoJS.SHA256(values.password).toString();
-
       const formData = new FormData();
       formData.append("username", values.username);
       formData.append("email", values.email);
-      formData.append("password", values.password); // Send plain password for backend hashing
+      formData.append("password", values.password);
       formData.append("profilePic", file);
 
       const res = await fetch(`http://localhost:4000/backend/users`, {
@@ -99,13 +95,9 @@ const RegisterFrom = () => {
         throw new Error(result.error || "Failed to register");
       }
 
-      // Update user context with the new user data
-      if (result.success && result.data) {
-        userIsRegistered(true);
-        router.push("/project-description");
-      } else {
-        throw new Error("Registration successful but no user data received");
-      }
+      console.log("User registered successfully:", result);
+      userIsRegistered(true);
+      router.push("/project-description");
     } catch (err) {
       console.error("Registration error:", err);
       if (err instanceof Error) {
@@ -116,118 +108,155 @@ const RegisterFrom = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <Card className="w-1/2 mx-auto my-3">
-      <CardHeader>
-        <CardTitle className="text-center">
-          Register to project planner
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            {/* Email */}
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Username" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    This is your public display name.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Username</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter your username"
+                    className="h-11"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  This is your public display name.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Email</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter your email"
+                    type="email"
+                    className="h-11"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  We&apos;ll use this to contact you.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">Password</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Create a secure password"
+                  type="password"
+                  className="h-11"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription className="text-xs">
+                Must be at least 8 characters long.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">
+                Confirm Password
+              </FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Confirm your password"
+                  type="password"
+                  className="h-11"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription className="text-xs">
+                Please enter the same password again.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="profilePic"
+          render={() => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">
+                Profile Picture
+              </FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    accept="image/*"
+                  />
+                  <Upload className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
+                </div>
+              </FormControl>
+              <FormDescription className="text-xs">
+                Upload a profile picture (JPG, PNG, or GIF).
+              </FormDescription>
+              <FormMessage />
+              {file && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ {file.name} selected
+                </p>
               )}
-            />
-            {/* Email 👇 */}
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Email" type="email" {...field} />
-                  </FormControl>
-                  <FormDescription>Enter your email</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Password 👇 */}
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Password" type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>Enter a password</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Confirm password 👇 */}
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Password" type="password" {...field} />
-                  </FormControl>
-                  <FormDescription>Confirm your password</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Profile pic 👇 */}
-            <FormField
-              control={form.control}
-              name="profilePic"
-              render={({ field: { onChange, ...restField } }) => (
-                <FormItem>
-                  <FormLabel>Profile Picture</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setFile(file);
-                          onChange(file);
-                        } else {
-                          setFile(null);
-                          onChange(null);
-                        }
-                      }}
-                      {...restField}
-                      value={undefined}
-                    />
-                  </FormControl>
-                  <FormDescription>Upload your profile picture</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading ? "Registering..." : "Submit"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+            </FormItem>
+          )}
+        />
+
+        <Button
+          type="submit"
+          className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating Account...
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </Button>
+      </form>
+    </Form>
   );
-};
-export default RegisterFrom;
+}

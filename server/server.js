@@ -1,149 +1,134 @@
 import express from "express";
-import cors from "cors";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
+import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcrypt";
+import multer from "multer";
+import dotenv from "dotenv";
+import cors from "cors";
 
-// Load environment variables from .env file
-const result = dotenv.config();
-console.log("Dotenv config result:", result);
+dotenv.config();
 
-// Debug: Log all environment variables
-console.log("All environment variables:", process.env);
-
-// Debug: Log specific Supabase variables
-console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log("Supabase Key:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
-const port = 4000;
 const app = express();
+const port = process.env.PORT || 4000;
 
-// Initialize Supabase client
+// Configure multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing environment variables:", {
-    supabaseUrl: supabaseUrl ? "exists" : "missing",
-    supabaseKey: supabaseKey ? "exists" : "missing",
-  });
-  throw new Error("Missing Supabase credentials. Please check your .env file.");
+  console.error(
+    "Error: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables are not set."
+  );
+  process.exit(1);
 }
-
-// Debug: Log the values we're using to create the client
-console.log("Creating Supabase client with:", {
-  url: supabaseUrl,
-  key: supabaseKey ? "Key exists" : "Key missing",
-});
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename with original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed!"));
-    }
-  },
-});
-
-// Middleware
-app.use(cors());
 app.use(express.json());
+const allowedOrigins = ["http://localhost:3000"];
 
-// GET endpoint
-app.get("/backend/users", (req, res) => {
-  res.send("Hello World!");
+const corsOptions = {
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg =
+        "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"], // Allow the methods you use
+  credentials: true, // If you're sending cookies or authorization headers
+  optionsSuccessStatus: 204, // Some legacy browsers (IE11, various SmartTVs) choke on 200
+};
+
+app.use(cors(corsOptions)); // Use the configured cors middleware
+
+// GET endpoint to fetch all users
+app.get("/backend/users", async (_, res) => {
+  try {
+    const { data, error } = await supabase.from("users").select("*");
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json(data || []);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-// POST endpoint for user registration
+// POST endpoint to create a new user
 app.post("/backend/users", upload.single("profilePic"), async (req, res) => {
+  const { username, email, password } = req.body;
+  const profilePicFile = req.file;
+
+  if (!username || !email || !password || !profilePicFile) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
   try {
-    const { username, email, password } = req.body;
-    const profilePic = req.file;
+    // Check for existing username
+    const { data: existingUsername } = await supabase
+      .from("users")
+      .select("username")
+      .eq("username", username)
+      .single();
 
-    // Validate required fields
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields",
+    if (existingUsername) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    // Check for existing email
+    const { data: existingEmail } = await supabase
+      .from("users")
+      .select("email")
+      .eq("email", email)
+      .single();
+
+    if (existingEmail) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    const bucketName = "profile-pic";
+    const fileExtension = profilePicFile.originalname.split(".").pop();
+    const filePath = `${uuidv4()}.${fileExtension}`;
+
+    // Upload the profile picture to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, profilePicFile.buffer, {
+        contentType: profilePicFile.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Supabase Storage upload error:", uploadError);
+      return res.status(500).json({
+        error: `Failed to upload profile picture: ${uploadError.message}`,
       });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid email format",
-      });
+    // Get the public URL of the uploaded image
+    const { data: publicUrlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      return res
+        .status(500)
+        .json({ error: "Failed to get public URL for uploaded file." });
     }
 
-    // Hash the password on the backend
+    const profilePicUrl = publicUrlData.publicUrl;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Upload profile picture to Supabase storage
-    let profilePicUrl = null;
-    if (profilePic) {
-      const fileBuffer = fs.readFileSync(profilePic.path);
-      const { error: uploadError } = await supabase.storage
-        .from("profile-pic")
-        .upload(profilePic.filename, fileBuffer, {
-          contentType: profilePic.mimetype,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(
-          "Failed to upload profile picture: " + uploadError.message
-        );
-      }
-
-      // Get public URL for the uploaded image
-      const {
-        data: { publicUrl },
-      } = supabase.storage
-        .from("profile-pic")
-        .getPublicUrl(profilePic.filename);
-
-      profilePicUrl = publicUrl;
-
-      // Clean up local file
-      fs.unlinkSync(profilePic.path);
-    }
-
-    // Insert user data into Supabase
-    const { data: userData, error: userError } = await supabase
+    const { data, error } = await supabase
       .from("users")
       .insert([
         {
@@ -153,40 +138,203 @@ app.post("/backend/users", upload.single("profilePic"), async (req, res) => {
           profilePic: profilePicUrl,
         },
       ])
-      .select()
+      .select();
+
+    if (error) {
+      // Clean up uploaded file if user creation fails
+      await supabase.storage.from(bucketName).remove([filePath]);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.status(201).json(data);
+  } catch (err) {
+    console.error("Error processing registration:", err);
+    return res.status(500).json({ error: "Error processing registration" });
+  }
+});
+
+// Root route handler
+// Corrected from pp.get to app.get
+app.get("/", (_, res) => {
+  res.send("API is running. Available endpoints: /api/data");
+});
+
+// PUT endpoint to update user data by ID
+app.put("/api/data/:id", upload.single("profilePic"), async (req, res) => {
+  const userId = req.params.id; // ID of the user to be updated
+  const { username, email: newEmail } = req.body; // New username and email
+  const profilePicFile = req.file; // New profile picture file
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required for update" });
+  }
+
+  try {
+    // First, fetch the existing user to get their current data, including current username, email and profilePic URL
+    const { data: existingUser, error: fetchError } = await supabase
+      .from("users")
+      .select("id, username, email, profilePic")
+      .eq("id", userId)
       .single();
 
-    if (userError) {
-      throw new Error("Failed to create user: " + userError.message);
+    if (fetchError) {
+      if (fetchError.code === "PGRST116") {
+        // Supabase error code for "no rows found"
+        return res.status(404).json({ error: "User not found." });
+      }
+      console.error("Error fetching existing user:", fetchError);
+      return res
+        .status(500)
+        .json({ error: "Internal server error during user fetch." });
     }
 
-    res.status(201).json({
-      success: true,
-      data: {
-        username: userData.username,
-        email: userData.email,
-        profilePic: userData.profilePic,
-      },
-      message: "User registered successfully",
-    });
-  } catch (error) {
-    console.error("Registration error:", error);
-
-    // Handle multer errors
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        error: "File size too large. Maximum size is 5MB",
-      });
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found." });
     }
 
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to register user",
-    });
+    const updateData = {};
+
+    // Update username if provided and different from current
+    if (username && username !== existingUser.username) {
+      // Check for existing username if it's being changed
+      const { data: existingUsername, error: usernameCheckError } =
+        await supabase
+          .from("users")
+          .select("username")
+          .eq("username", username)
+          .single();
+
+      if (usernameCheckError && usernameCheckError.code !== "PGRST116") {
+        console.error(
+          "Error checking for existing username:",
+          usernameCheckError
+        );
+        return res
+          .status(500)
+          .json({ error: "Error checking for existing username." });
+      }
+      if (existingUsername) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+      updateData.username = username;
+    }
+
+    // Update email if provided and different from current
+    if (newEmail && newEmail !== existingUser.email) {
+      // Check for existing email if it's being changed
+      const { data: existingEmail, error: emailCheckError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("email", newEmail)
+        .single();
+
+      if (emailCheckError && emailCheckError.code !== "PGRST116") {
+        console.error("Error checking for existing email:", emailCheckError);
+        return res
+          .status(500)
+          .json({ error: "Error checking for existing email." });
+      }
+      if (existingEmail) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+      updateData.email = newEmail;
+    }
+
+    // Handle profile picture update
+    if (profilePicFile) {
+      const bucketName = "profile-pic";
+      const fileExtension = profilePicFile.originalname.split(".").pop();
+      const filePath = `${uuidv4()}.${fileExtension}`; // New unique file path
+
+      // Upload the new profile picture to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, profilePicFile.buffer, {
+          contentType: profilePicFile.mimetype,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Supabase Storage upload error:", uploadError);
+        return res.status(500).json({
+          error: `Failed to upload new profile picture: ${uploadError.message}`,
+        });
+      }
+
+      // Get the public URL of the newly uploaded image
+      const { data: publicUrlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+      if (!publicUrlData || !publicUrlData.publicUrl) {
+        // If public URL can't be generated, attempt to remove the uploaded file
+        await supabase.storage.from(bucketName).remove([filePath]);
+        return res
+          .status(500)
+          .json({ error: "Failed to get public URL for new profile picture." });
+      }
+      updateData.profilePic = publicUrlData.publicUrl;
+
+      // Optionally, delete the old profile picture from storage if it exists
+      if (existingUser.profilePic) {
+        try {
+          // Extract filename from URL (e.g., https://example.com/bucket/filename.jpg -> filename.jpg)
+          const oldFilePath = existingUser.profilePic.split("/").pop();
+          // Ensure it's a valid filename, not just an empty string or base URL
+          if (oldFilePath && oldFilePath.includes(".")) {
+            await supabase.storage.from(bucketName).remove([oldFilePath]);
+          }
+        } catch (deleteError) {
+          console.warn(
+            `Could not delete old profile picture '${existingUser.profilePic}': ${deleteError.message}`
+          );
+          // Don't block the update if old picture deletion fails
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No changes provided to update." });
+    }
+
+    // Perform the update in the 'users' table using the user ID
+    const { data, error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId) // Use the user ID to identify the user
+      .select();
+
+    if (error) {
+      // If the update fails, and a new profile pic was uploaded, try to clean it up
+      if (profilePicFile && updateData.profilePic) {
+        try {
+          const newFilePathToDelete = updateData.profilePic.split("/").pop();
+          await supabase.storage.from(bucketName).remove([newFilePathToDelete]);
+        } catch (cleanupError) {
+          console.warn(
+            `Failed to clean up newly uploaded profile pic after update error: ${cleanupError.message}`
+          );
+        }
+      }
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      // This case should ideally not happen if existingUser was found, but good for robustness
+      return res
+        .status(404)
+        .json({ error: "User not found or no changes applied." });
+    }
+
+    return res.status(200).json(data[0]); // Return the updated user data
+  } catch (err) {
+    console.error("Error processing user update:", err);
+    return res.status(500).json({ error: "Error processing user update" });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });

@@ -16,6 +16,10 @@ const HeadingAndLogo = () => {
   const { registeredUser } = context;
   const pathName = usePathname();
   const [isLandingPage, setIsLandingPage] = useState(false);
+  const [userData, setUserData] = useState<{
+    username: string;
+    profilePic: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (pathName === "/") {
@@ -24,6 +28,28 @@ const HeadingAndLogo = () => {
       setIsLandingPage(false);
     }
   }, [pathName]);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/backend/users");
+        const result = await res.json();
+
+        if (result.success && result.data) {
+          setUserData({
+            username: result.data.username,
+            profilePic: result.data.profilePic,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    if (registeredUser) {
+      fetchUserData();
+    }
+  }, [registeredUser]);
 
   return (
     <div className="flex items-center justify-evenly">
@@ -45,8 +71,12 @@ const HeadingAndLogo = () => {
         </Button>
       ) : registeredUser ? (
         <Avatar>
-          <AvatarImage src="https://github.com/shadcn.png" />
-          <AvatarFallback>CN</AvatarFallback>
+          <AvatarImage
+            src={userData?.profilePic || "https://github.com/shadcn.png"}
+          />
+          <AvatarFallback>
+            {userData?.username?.slice(0, 2).toUpperCase() || "CN"}
+          </AvatarFallback>
         </Avatar>
       ) : null}
     </div>
