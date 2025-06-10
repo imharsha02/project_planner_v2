@@ -97,7 +97,8 @@ export default function RegisterForm() {
 
       console.log("User registered successfully:", result);
       userIsRegistered(true);
-      router.push("/project-description");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      router.push("/about-project");
     } catch (err) {
       console.error("Registration error:", err);
       if (err instanceof Error) {
