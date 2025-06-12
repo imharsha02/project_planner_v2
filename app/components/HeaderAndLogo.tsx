@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 const HeadingAndLogo = () => {
   const context = useContext(userContext);
@@ -30,26 +31,31 @@ const HeadingAndLogo = () => {
   }, [pathName]);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const res = await fetch("http://localhost:4000/backend/users");
-        const result = await res.json();
-
-        if (result.success && result.data) {
-          setUserData({
-            username: result.data.username,
-            profilePic: result.data.profilePic,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+    const fetchUserProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setUserData(null);
+        return;
       }
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("username, profilePic")
+        .eq("id", user.id)
+        .single();
+      if (error || !profile) {
+        setUserData(null);
+        return;
+      }
+      setUserData({
+        username: profile.username,
+        profilePic: profile.profilePic,
+      });
     };
 
-    if (registeredUser) {
-      fetchUserData();
-    }
-  }, [registeredUser]);
+    fetchUserProfile();
+  }, []);
 
   return (
     <div className="flex items-center justify-evenly">

@@ -20,6 +20,7 @@ import { useContext, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { userContext } from "../context/userContext";
+import { supabase } from "@/lib/supabaseClient";
 
 const formSchema = z
   .object({
@@ -78,24 +79,53 @@ export default function RegisterForm() {
       setIsLoading(true);
       setError(null);
 
-      const formData = new FormData();
-      formData.append("username", values.username);
-      formData.append("email", values.email);
-      formData.append("password", values.password);
-      formData.append("profilePic", file);
-
-      const res = await fetch(`http://localhost:4000/backend/users`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to register");
+      // 1. Sign up user with Supabase Auth
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email: values.email,
+          password: values.password,
+          options: {
+            data: { username: values.username },
+          },
+        });
+      if (signUpError) {
+        setError(signUpError.message);
+        setIsLoading(false);
+        return;
+      }
+      const userId = signUpData.user?.id;
+      if (!userId) {
+        setError("User registration failed. No user ID returned.");
+        setIsLoading(false);
+        return;
       }
 
-      console.log("User registered successfully:", result);
+      // 2. Upload profile picture to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("profile-pic")
+        .upload(`profilePic-${userId}`, file);
+      if (uploadError) {
+        setError(uploadError.message);
+        setIsLoading(false);
+        return;
+      }
+      const publicUrl = supabase.storage
+        .from("profile-pic")
+        .getPublicUrl(`profilePic-${userId}`).data.publicUrl;
+
+      // 3. Save profile info in 'users' table
+      const { error: profileError } = await supabase.from("users").upsert({
+        id: userId,
+        username: values.username,
+        email: values.email,
+        profilePic: publicUrl,
+      });
+      if (profileError) {
+        setError(profileError.message);
+        setIsLoading(false);
+        return;
+      }
+
       userIsRegistered(true);
       await new Promise((resolve) => setTimeout(resolve, 100));
       router.push("/about-project");
