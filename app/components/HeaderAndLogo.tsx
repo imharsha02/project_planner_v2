@@ -7,7 +7,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 const HeadingAndLogo = () => {
   const context = useContext(userContext);
   if (!context) {
@@ -44,14 +51,28 @@ const HeadingAndLogo = () => {
           <Link href="/register-me">Get Started</Link>
         </Button>
       ) : registeredUser ? (
-        <Avatar>
-          <AvatarImage
-            src={userData?.profilePic || "https://github.com/shadcn.png"}
-          />
-          <AvatarFallback>
-            {userData?.username?.slice(0, 2).toUpperCase() || "CN"}
-          </AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Avatar>
+              <AvatarImage
+                src={userData?.profilePic || "https://github.com/shadcn.png"}
+              />
+              <AvatarFallback>
+                {userData?.username?.slice(0, 2).toUpperCase() || "CN"}
+              </AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>My Projects</DropdownMenuItem>
+            <DropdownMenuItem>Billing</DropdownMenuItem>
+            <DropdownMenuItem>Team</DropdownMenuItem>
+            <DropdownMenuItem className="text-red-500">
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </div>
   );
