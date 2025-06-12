@@ -45,7 +45,7 @@ export default function RegisterForm() {
   if (!context) {
     throw new Error("RegisterForm must be used within a UserProvider");
   }
-  const { userIsRegistered } = context;
+  const { userIsRegistered, setUserData } = context;
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -125,6 +125,12 @@ export default function RegisterForm() {
         setIsLoading(false);
         return;
       }
+
+      // Set user data in context
+      setUserData({
+        username: values.username,
+        profilePic: publicUrl,
+      });
 
       userIsRegistered(true);
       await new Promise((resolve) => setTimeout(resolve, 100));
