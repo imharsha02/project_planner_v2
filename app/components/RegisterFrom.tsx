@@ -133,8 +133,23 @@ export default function RegisterForm() {
       });
 
       userIsRegistered(true);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      router.push("/about-project");
+
+      // Wait for Supabase session to be established (max 3 seconds)
+      let session = null;
+      for (let i = 0; i < 10; i++) {
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
+        if (session) break;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      if (session) {
+        router.push("/about-project");
+      } else {
+        setError(
+          "Please check your email to confirm your account before proceeding."
+        );
+      }
     } catch (err) {
       console.error("Registration error:", err);
       if (err instanceof Error) {
