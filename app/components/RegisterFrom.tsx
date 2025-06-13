@@ -100,6 +100,17 @@ export default function RegisterForm() {
         return;
       }
 
+      // Sign in the user immediately after registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+      if (signInError) {
+        setError(signInError.message);
+        setIsLoading(false);
+        return;
+      }
+
       // 2. Upload profile picture to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("profile-pic")
@@ -133,23 +144,7 @@ export default function RegisterForm() {
       });
 
       userIsRegistered(true);
-
-      // Wait for Supabase session to be established (max 3 seconds)
-      let session = null;
-      for (let i = 0; i < 10; i++) {
-        const { data } = await supabase.auth.getSession();
-        session = data.session;
-        if (session) break;
-        await new Promise((r) => setTimeout(r, 300));
-      }
-
-      if (session) {
-        router.push("/about-project");
-      } else {
-        setError(
-          "Please check your email to confirm your account before proceeding."
-        );
-      }
+      router.push("/about-project");
     } catch (err) {
       console.error("Registration error:", err);
       if (err instanceof Error) {

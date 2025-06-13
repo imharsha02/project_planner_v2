@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,13 +16,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 const HeadingAndLogo = () => {
   const context = useContext(userContext);
   if (!context) {
     throw new Error("HeaderAndLogo must be used within a UserProvider");
   }
-  const { registeredUser, userData } = context;
+  const { registeredUser, userData, userIsRegistered, setUserData } = context;
   const pathName = usePathname();
+  const router = useRouter();
   const [isLandingPage, setIsLandingPage] = useState(false);
 
   useEffect(() => {
@@ -31,6 +34,15 @@ const HeadingAndLogo = () => {
       setIsLandingPage(false);
     }
   }, [pathName]);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      userIsRegistered(false);
+      setUserData(null);
+      router.push("/");
+    }
+  };
 
   return (
     <div className="flex items-center justify-evenly">
@@ -68,7 +80,7 @@ const HeadingAndLogo = () => {
             <DropdownMenuItem>My Projects</DropdownMenuItem>
             <DropdownMenuItem>Billing</DropdownMenuItem>
             <DropdownMenuItem>Team</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-500">
+            <DropdownMenuItem className="text-red-500" onClick={handleLogout}>
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
