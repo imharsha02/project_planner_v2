@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useContext, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { userContext } from "../context/userContext";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -158,152 +159,160 @@ export default function RegisterForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Username</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Enter your username"
-                    className="h-11"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription className="text-xs">
-                  This is your public display name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+    <Card className="w-1/2 my-10 mx-auto">
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          />
 
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Email</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Enter your email"
-                    type="email"
-                    className="h-11"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription className="text-xs">
-                  We&apos;ll use this to contact you.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">
+                      Username
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your username"
+                        className="h-11"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      This is your public display name.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm font-medium">Password</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Create a secure password"
-                  type="password"
-                  className="h-11"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription className="text-xs">
-                Must be at least 8 characters long.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your email"
+                        type="email"
+                        className="h-11"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      We&apos;ll use this to contact you.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm font-medium">
-                Confirm Password
-              </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Confirm your password"
-                  type="password"
-                  className="h-11"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription className="text-xs">
-                Please enter the same password again.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="profilePic"
-          render={() => (
-            <FormItem>
-              <FormLabel className="text-sm font-medium">
-                Profile Picture
-              </FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    accept="image/*"
-                  />
-                  <Upload className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
-                </div>
-              </FormControl>
-              <FormDescription className="text-xs">
-                Upload a profile picture (JPG, PNG, or GIF).
-              </FormDescription>
-              <FormMessage />
-              {file && (
-                <p className="text-xs text-green-600 mt-1">
-                  ✓ {file.name} selected
-                </p>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    Password
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Create a secure password"
+                      type="password"
+                      className="h-11"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Must be at least 8 characters long.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
               )}
-            </FormItem>
-          )}
-        />
+            />
 
-        <Button
-          type="submit"
-          className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating Account...
-            </>
-          ) : (
-            "Create Account"
-          )}
-        </Button>
-      </form>
-    </Form>
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    Confirm Password
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Confirm your password"
+                      type="password"
+                      className="h-11"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Please enter the same password again.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="profilePic"
+              render={() => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    Profile Picture
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        onChange={handleFileChange}
+                        className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold"
+                        accept="image/*"
+                      />
+                      <Upload className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
+                    </div>
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Upload a profile picture (JPG, PNG, or GIF).
+                  </FormDescription>
+                  <FormMessage />
+                  {file && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✓ {file.name} selected
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full font-sans font-semibold text-md"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }
