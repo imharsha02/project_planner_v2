@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyH2 } from "../components/ui/Typography/TypographyH2";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, Trash2 } from "lucide-react";
 
 const formSchema = z.object({
   projectTitle: z
@@ -27,6 +28,11 @@ const formSchema = z.object({
   projectDescription: z
     .string()
     .min(2, "Description must be at least 2 characters"),
+  projectSteps: z.array(
+    z.object({
+      step: z.string().min(1, "Step description is required"),
+    })
+  ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,7 +44,13 @@ const AboutProjectPage = () => {
       projectTitle: "",
       projectDepartment: "",
       projectDescription: "",
+      projectSteps: [{ step: "" }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "projectSteps",
   });
 
   function onSubmit(data: FormValues) {
@@ -104,6 +116,56 @@ const AboutProjectPage = () => {
                 </FormItem>
               )}
             />
+
+            <div className="space-y-4">
+              <FormLabel>Project Steps</FormLabel>
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex gap-2 items-start">
+                  <FormField
+                    control={form.control}
+                    name={`projectSteps.${index}.step`}
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Input placeholder={`Step ${index + 1}`} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {index > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => append({ step: "" })}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Step
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Suggest Steps
+                </Button>
+              </div>
+            </div>
 
             <Button type="submit" className="w-full">
               Submit
