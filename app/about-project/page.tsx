@@ -51,7 +51,9 @@ const AboutProjectPage = () => {
     <Card className="w-1/2 mx-auto my-3">
       <CardHeader>
         <CardTitle>
-          <TypographyH2 className="border-none">Project Details</TypographyH2>
+          <TypographyH2 className="border-none tracking-wide">
+            Project Details
+          </TypographyH2>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -103,7 +105,9 @@ const AboutProjectPage = () => {
               )}
             />
 
-            <Button type="submit" className="w-full">Submit</Button>
+            <Button type="submit" className="w-full">
+              Submit
+            </Button>
           </form>
         </Form>
       </CardContent>
